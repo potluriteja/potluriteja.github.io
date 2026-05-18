@@ -1,0 +1,623 @@
+{
+  "name": "Human in the Loop Calendar Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1264,
+        368
+      ],
+      "id": "1183ef63-f553-476b-8d1f-7c3a2ea0b026",
+      "name": "Telegram Trigger",
+      "webhookId": "45a20069-fe0a-4809-a434-62186e1427df",
+      "credentials": {
+        "telegramApi": {
+          "id": "4FNq1qZ4XJKEbnZO",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=User query: {{ $json.message.text }}",
+        "options": {
+          "systemMessage": "=# Overview\nYou are a calendar assistant. Your job is to look at the incoming query and determine the intent.\n\n## Tools\nContacts - Use this tool to get contact information like email address. This tool must be used if the user requests to create an event with an attendee. If no attendee is specified, you don't need to use this tool.\nGet_Events - Use this to get events when the user wants to create, delete, or update an event. You should provide details about the event to confirm it is the right one to delete or update.\n\n## Rules\n- You must always get events using the 'Get_Events' tool to make sure there are no scheduling conflicts.\n- When you are asked to move, update, or delete an event, you must use 'Get_Events' to confirm the event. You must output the event details like date, time, and any attendee emails\n\n## Output\n- You must output the request from the user and ask any clarification questions.\n- Always output the email of the contact the user requested if requested.\n- If there are two records of contact information for a single name, output the email and the type of contact.\n\n## Final notes\nHere is the current date/time: {{ $now }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -1120,
+        368
+      ],
+      "id": "3f069842-872a-4ff8-8924-ca25e8c6d0cb",
+      "name": "Intent Agent"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "potluriteja@gmail.com",
+          "mode": "list",
+          "cachedResultName": "potluriteja@gmail.com"
+        },
+        "returnAll": true,
+        "timeMin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('After', `12:01 AM of the day the user requested`, 'string') }}",
+        "timeMax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Before', `11:59 PM of the day the user requested`, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        -1120,
+        608
+      ],
+      "id": "77e26fb9-0dcf-4ce4-b870-c3dda456ecf7",
+      "name": "Get_Events",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "g4rbrzqq2uNky8tF",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appkpdTcVMWDJmhar",
+          "mode": "list",
+          "cachedResultName": "Untitled Base",
+          "cachedResultUrl": "https://airtable.com/appkpdTcVMWDJmhar"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbljLbx8QkQVW9STq",
+          "mode": "list",
+          "cachedResultName": "Contacts",
+          "cachedResultUrl": "https://airtable.com/appkpdTcVMWDJmhar/tbljLbx8QkQVW9STq"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        -976,
+        608
+      ],
+      "id": "f69e149d-abaf-455f-b26c-4b4a405308ae",
+      "name": "Contacts",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "gtUhw07PH5BT7PKs",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3ab6c175-d35c-48a3-a9db-5162f962d5f9",
+              "name": "intent",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -800,
+        368
+      ],
+      "id": "5f46ede7-8216-490e-bd23-48197791714d",
+      "name": "Set Intent"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "message": "={{ $json.intent }}",
+        "responseType": "freeText",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -640,
+        368
+      ],
+      "id": "9f19efba-2168-403e-9615-bc5d15337360",
+      "name": "HITL",
+      "webhookId": "06135021-087d-4558-be06-94de90f2f053",
+      "credentials": {
+        "telegramApi": {
+          "id": "4FNq1qZ4XJKEbnZO",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $json.data.text }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "Approved",
+              "description": "The human is confirming or agreeing with our request. This means they acknowledge that the provided information or action is correct and ready to proceed. Approval messages often include phrases like:\n\n\"Yes\"\n\"Looks good to me\"\n\"Send it\"\n\"Correct\"\n\"Approved\"\n\"That works\"\n\"Sounds good\"\n\"Go ahead\""
+            },
+            {
+              "category": "Denied",
+              "description": "The human is providing feedback that does not indicate approval. This could include requests for changes, corrections, or additional clarifications. A denial may also involve specifying a type of email, like 'business' or 'personal'.\n\nExamples \"Denied\" phrases:\n'business'\n'change the time'\n'personal'\n'delete both'\n'delete the first one'\n'today'\n'tomorrow'\n'february 22nd'"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        368
+      ],
+      "id": "82c5734b-81cb-4218-9931-bef5dc94d164",
+      "name": "Check Feedback"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Original intent: {{ $('Set Intent').item.json.intent }}\n\nHuman feedback: {{ $json.data.text }}",
+        "options": {
+          "systemMessage": "=# Overview\nYou are a correction agent. Your job is to look at the original output, and correct it based on the human feedback.\n\n## Output\n- Your job is to output the new intent of the request. \n- Always include all of the details required like email address of attendees, time, date, summary, etc.\n- Ask a clarification question if necessary. If there is nothing to clarify, just ask \"Is this correct?\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        0,
+        528
+      ],
+      "id": "f33bd94d-dc30-4c13-bdd5-90685cb51545",
+      "name": "Correction Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Set Intent').item.json.intent }}",
+        "options": {
+          "systemMessage": "=# Overview\nYou are a calendar assistant. Your responsibilities include creating, getting, and deleting events in the user's calendar.\n\n**Calendar Management Tools**  \n   - Use \"Create Event with Attendee\" when an event includes a participant.  \n   - Use \"Create Event\" for solo events.   \n   - Use \"Get Events\" to fetch calendar schedules when requested.\n   - Use \"Delete Event\" to delete an event. You must use \"Get Events\" first to get the ID of the event to delete.\n   - Use \"Update Event\" to update an event. You must use \"Get Events\" first to get the ID of the event to update.\n\n## Rules\n- Turn the incoming query into an action. Ignore clarification questions, just take action based on the intent you receive.\n\n## Final Notes\nHere is the current date/time: {{ $now }}\nIf a duration for an event isn't specified, assume it will be one hour."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        0,
+        0
+      ],
+      "id": "173cd08c-ef60-44c3-bd84-cbd47641e60b",
+      "name": "Calendar Agent"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "potluriteja@gmail.com",
+          "mode": "list",
+          "cachedResultName": "potluriteja@gmail.com"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+        "additionalFields": {
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Summary', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        32,
+        272
+      ],
+      "id": "303be3c3-35ae-4946-b37f-90b19f719c4f",
+      "name": "Create Event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "g4rbrzqq2uNky8tF",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "potluriteja@gmail.com",
+          "mode": "list",
+          "cachedResultName": "potluriteja@gmail.com"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Attendees', ``, 'string') }}"
+          ],
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Summary', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        272
+      ],
+      "id": "2febbce7-579e-478b-8eda-23532ccb375a",
+      "name": "Create Event with Attendee",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "g4rbrzqq2uNky8tF",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "potluriteja@gmail.com",
+          "mode": "list",
+          "cachedResultName": "potluriteja@gmail.com"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Event_ID', ``, 'string') }}",
+        "updateFields": {
+          "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+          "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        384,
+        272
+      ],
+      "id": "6090ed71-d169-4560-bef4-86317b957248",
+      "name": "Update Event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "g4rbrzqq2uNky8tF",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "potluriteja@gmail.com",
+          "mode": "list",
+          "cachedResultName": "potluriteja@gmail.com"
+        },
+        "returnAll": true,
+        "timeMin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('After', `12:01 AM of the day the user requested`, 'string') }}",
+        "timeMax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Before', `11:59 PM of the day the user requested`, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        272,
+        272
+      ],
+      "id": "a2838a4f-ea80-4278-aa55-0c79da435586",
+      "name": "Get Events",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "g4rbrzqq2uNky8tF",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "potluriteja@gmail.com",
+          "mode": "list",
+          "cachedResultName": "potluriteja@gmail.com"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Event_ID', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        512,
+        272
+      ],
+      "id": "da280936-c8b0-4d3a-a03c-b0b6aafa83e5",
+      "name": "Delete Event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "g4rbrzqq2uNky8tF",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        0
+      ],
+      "id": "1bea3c52-731e-4a81-8865-be01600f8ed8",
+      "name": "Response",
+      "webhookId": "2ab05328-c0b6-462c-a662-2264114c417f",
+      "credentials": {
+        "telegramApi": {
+          "id": "4FNq1qZ4XJKEbnZO",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# ravi potluri | AI Automation\n",
+        "height": 80,
+        "width": 520,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -864,
+        144
+      ],
+      "typeVersion": 1,
+      "id": "07a25206-fd91-4e68-8ef4-21e8593aedf7",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        912
+      ],
+      "id": "dfc7000a-a1d0-4184-94df-75d6f2d75abc",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "1GzRtcGn9Cn4i3LW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Intent Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get_Events": {
+      "ai_tool": [
+        [
+          {
+            "node": "Intent Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contacts": {
+      "ai_tool": [
+        [
+          {
+            "node": "Intent Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Agent": {
+      "main": [
+        [
+          {
+            "node": "Set Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Intent": {
+      "main": [
+        [
+          {
+            "node": "HITL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HITL": {
+      "main": [
+        [
+          {
+            "node": "Check Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Feedback": {
+      "main": [
+        [
+          {
+            "node": "Calendar Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Correction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Correction Agent": {
+      "main": [
+        [
+          {
+            "node": "Set Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Event": {
+      "ai_tool": [
+        [
+          {
+            "node": "Calendar Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Event with Attendee": {
+      "ai_tool": [
+        [
+          {
+            "node": "Calendar Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Event": {
+      "ai_tool": [
+        [
+          {
+            "node": "Calendar Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Events": {
+      "ai_tool": [
+        [
+          {
+            "node": "Calendar Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Event": {
+      "ai_tool": [
+        [
+          {
+            "node": "Calendar Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Agent": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Correction Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Calendar Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Check Feedback",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Intent Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "84db6443-6f11-4156-92db-941f08b89b21",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6ec59ee34701b862074184db89058678a9560f0651162da63541c5032bd8abb"
+  },
+  "id": "TG5eyKlvaQ8YEcKD",
+  "tags": []
+}
