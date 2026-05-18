@@ -1,0 +1,520 @@
+{
+  "name": "Book Event",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.messages[0].text.body }}",
+        "options": {
+          "systemMessage": "🌟 Core Identity\nThe AI acts as a smart food ordering assistant for \"MDA Restaurant\".\n\n📋 Assistant Rules\n1. First Message Greeting\nWhen a user sends their first message (like hi, hello), reply with:\n\n\"Welcome to Ravi Restaurant 🏪\nHow can I help you today?\n\n🛍️ Place an order\n\nℹ️ FAQ / Information\n\n🔍 Check order / stock\"\n\n(👉 Keep the tone friendly like a food delivery app, not like a product e-commerce site)\n\n2. Ordering Process (If user wants order)\nAsk step-by-step for their name, food item, and quantity.\n\nCheck the Inventory sheet before confirming:\n\nIf available: \"Your order for *[item]* (x quantity) is confirmed ✅ 🛒\"\n\nIf not available: \"Sorry, *[item]* is out of stock ❌. Available options: [list items]\"\n\nOnly confirmed orders go into the Orders sheet.\n\nIn the Orders sheet, always include:\n\nStatus = Confirmed / Rejected\n\nDescription = \"Order accepted (item available)\" OR \"Order rejected (out of stock)\"\n\n3. FAQ Handling (If user wants FAQ)\nAnswer short and clear (delivery time, payment method, restaurant hours).\n\n4. Status Checks (If user wants check order or check stock)\nAsk for the food name or order id.\n\nLook up the information in Google Sheets (Orders / Inventory):\n\nIf checking order: Reply with status (Confirmed / Rejected / Cancelled / Delivered).\n\nIf checking stock: Reply with the available quantity of that food.\n\nAlso list all *available* food items with quantity if requested.\n\n5. Order Cancellation (If user wants cancel order)\nReply politely:\n\n\"Sorry 🙇 I cannot cancel orders directly. Please call the restaurant owner first and inform them. Owner Contact: +95 1224567890\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "eb7e7edc-e2d3-42d8-b4e1-ba573d1f1ddf",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        112
+      ],
+      "id": "41287ba1-9ac0-4dbe-90bd-e5b642631e97",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "1GzRtcGn9Cn4i3LW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('WhatsApp Trigger').item.json.contacts[0].wa_id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        224,
+        208
+      ],
+      "id": "43ce3ae5-fad0-4626-a7fd-741b050d304e",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1wDgKqSpGev1X-q6kzOp5RIU5gfZikfG5EDeaQGPnk98"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "=faq",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        256
+      ],
+      "id": "a3aff8f4-50de-4aef-8e02-a378f2a61da8",
+      "name": "faq",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "opCVFWnjocV24FKP",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1wDgKqSpGev1X-q6kzOp5RIU5gfZikfG5EDeaQGPnk98"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "=inventory",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        368,
+        208
+      ],
+      "id": "8cf5a831-11cb-40c9-9b1e-933ae2d43feb",
+      "name": "get inventory",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "opCVFWnjocV24FKP",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1wDgKqSpGev1X-q6kzOp5RIU5gfZikfG5EDeaQGPnk98",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "=orders"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Customer Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Customer_Name', ``, 'string') }}",
+            "Food Item": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Food_Item', ``, 'string') }}",
+            "Quantity Ordered": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Quantity_Ordered', ``, 'string') }}",
+            "Order Date": "={{ $now.format('yyyy-MM-dd HH:mm:ss') }}",
+            "Status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Status', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Food Item",
+              "displayName": "Food Item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Quantity Ordered",
+              "displayName": "Quantity Ordered",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Order Date",
+              "displayName": "Order Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        608,
+        112
+      ],
+      "id": "9f3a7776-9c0e-4ada-907e-a36590be886b",
+      "name": "Append row in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "opCVFWnjocV24FKP",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        0
+      ],
+      "id": "e400c4d1-4c88-4356-983e-b8ba020e7fdd",
+      "name": "WhatsApp Trigger",
+      "webhookId": "a4c6a733-aea0-4323-b4f3-c538bed4ccbc",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "jPfhvwDjG49ok8oW",
+          "name": "WhatsApp OAuth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1082861278252365",
+        "recipientPhoneNumber": "+919010045444",
+        "textBody": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        -16
+      ],
+      "id": "b090c01b-3feb-40b4-be95-ff079b2c70cd",
+      "name": "Send message",
+      "webhookId": "ec1fd70a-e0a6-40ee-8a68-6f83bfbe47df",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "TuOhnytm4frHaTKX",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "startTime"
+            },
+            {
+              "name": "endTime"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "eventSummary"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        384,
+        384
+      ],
+      "id": "153126b8-06f3-4c35-a306-4b8be4ac83ed",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "nateherk88@gmail.com",
+          "mode": "list",
+          "cachedResultName": "nateherk88@gmail.com"
+        },
+        "start": "={{ $json.startTime }}",
+        "end": "={{ $json.endTime }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ $json.email }}"
+          ],
+          "summary": "={{ $json.eventSummary }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        592,
+        384
+      ],
+      "id": "7e5e1df5-fadd-4337-8476-1cf50958634c",
+      "name": "Create an event"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "10AgDO-r3qUk8y2HoYW8pw13dkkyHLqf1XB93ou9nGBE",
+          "mode": "list",
+          "cachedResultName": "Hercules Detailing CRM",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10AgDO-r3qUk8y2HoYW8pw13dkkyHLqf1XB93ou9nGBE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2008710317,
+          "mode": "list",
+          "cachedResultName": "Appointment Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10AgDO-r3qUk8y2HoYW8pw13dkkyHLqf1XB93ou9nGBE/edit#gid=2008710317"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $('When Executed by Another Workflow').item.json.email }}",
+            "Appointment Type": "={{ $('When Executed by Another Workflow').item.json.eventSummary }}",
+            "Date": "={{ $('When Executed by Another Workflow').item.json.startTime }}",
+            "Notes": "Appointment Booked",
+            "ID": "={{ $json.id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Appointment Type",
+              "displayName": "Appointment Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        800,
+        384
+      ],
+      "id": "d1710913-2bdc-46a5-b5ac-3f3fee92e529",
+      "name": "Append row in sheet"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "faq": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get inventory": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Create an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4e944d8d-da87-411a-a6d8-2e2b7065253b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6ec59ee34701b862074184db89058678a9560f0651162da63541c5032bd8abb"
+  },
+  "id": "Q6hSBp9Pj1XJnnRe",
+  "tags": [
+    {
+      "updatedAt": "2026-05-18T02:47:19.964Z",
+      "createdAt": "2026-05-18T02:47:19.964Z",
+      "id": "T2rPcvC8cnCExVMH",
+      "name": "Vapi MCP"
+    }
+  ]
+}
