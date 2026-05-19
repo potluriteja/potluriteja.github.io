@@ -1,0 +1,125 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+const corsHeaders: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+Deno.serve(async (req: Request) => {
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    if (req.method !== "POST") {
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const authHeader = req.headers.get("Authorization"); // may be null
+    const body = await req.json().catch(() => null);
+
+    if (!body) {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Create Supabase client (anon key is fine for calling RPC if your DB/RLS allows it)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY");
+
+    if (!supabaseUrl || !supabaseAnon) {
+      return new Response(JSON.stringify({ error: "Missing env vars" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // If you want the RPC to run as the caller, pass the JWT.
+    // We'll use fetch to set the Authorization header for supabase-js requests.
+    const supabaseClient = createClient(supabaseUrl, supabaseAnon, {
+      global: authHeader ? { headers: { Authorization: authHeader } } : undefined,
+    });
+
+    // Invoke the PostgreSQL RPC function
+    const { data, error } = await supabaseClient.rpc(
+      "hybrid_search_v2_with_details",
+      body
+    );
+
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
+
+
+above is edge function and also below is the database function in Supabase 
+
+
+#variable_conflict use_column
+begin
+  -- Use CTEs to get ranked results from each search type
+  return query
+  with vector_search as (
+    select
+      dv2.id,
+      (1 - (dv2.embedding <=> query_embedding))::float as similarity_score,
+      rank() over (order by dv2.embedding <=> query_embedding asc) as rank
+    from documents_v2 dv2
+    where metadata @> filter
+    order by similarity_score desc
+    limit match_count * 2
+  ),
+  keyword_search as (
+    select
+      dv2.id,
+      ts_rank(fts, websearch_to_tsquery('english', query_text))::float as keyword_score,
+      rank() over (order by ts_rank(fts, websearch_to_tsquery('english', query_text)) desc) as rank
+    from documents_v2 dv2
+    where metadata @> filter and fts @@ websearch_to_tsquery('english', query_text)
+    order by keyword_score desc
+    limit match_count * 2
+  )
+  
+  select
+    docs.id,
+    docs.content,
+    docs.metadata,
+    coalesce(vector_search.similarity_score, 0.0) as vector_score,
+    coalesce(keyword_search.keyword_score, 0.0) as keyword_score,
+    vector_search.rank as vector_rank,
+    keyword_search.rank as keyword_rank,
+    (
+      coalesce(1.0 / (rrf_k + vector_search.rank), 0.0) +
+      coalesce(1.0 / (rrf_k + keyword_search.rank), 0.0)
+    )::double precision as final_score
+  from vector_search
+  full outer join keyword_search on vector_search.id = keyword_search.id
+  join documents_v2 docs on docs.id = coalesce(vector_search.id, keyword_search.id)
+  
+  -- Order by the final combined score
+  order by final_score desc
+  limit match_count; -- Apply final limit
+end;
